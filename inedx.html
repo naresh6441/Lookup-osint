@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🚘 Vehicle Lookup</title>
+
+<style>
+*{
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    margin:0;
+    min-height:100vh;
+    padding:18px;
+    color:white;
+    background:linear-gradient(135deg,#050b16,#123b5d,#46154f);
+}
+
+.container{
+    max-width:720px;
+    margin:auto;
+    padding:24px;
+    border-radius:24px;
+    background:rgba(255,255,255,.09);
+    backdrop-filter:blur(15px);
+    box-shadow:0 20px 60px #0008;
+}
+
+h1{
+    text-align:center;
+    margin-bottom:7px;
+}
+
+.subtitle{
+    text-align:center;
+    color:#b9c9d8;
+    margin-bottom:22px;
+}
+
+input{
+    width:100%;
+    padding:15px;
+    border:0;
+    outline:0;
+    border-radius:12px;
+    font-size:17px;
+    margin-bottom:10px;
+}
+
+button{
+    width:100%;
+    padding:14px;
+    border:0;
+    border-radius:12px;
+    color:white;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    margin-top:8px;
+    background:linear-gradient(90deg,#00c6ff,#8b2cff);
+}
+
+.dataBtn{
+    background:linear-gradient(90deg,#00a86b,#087f5b);
+}
+
+.danger{
+    background:#a92727;
+}
+
+.status{
+    text-align:center;
+    margin:15px 0;
+}
+
+.panel{
+    margin-top:16px;
+    background:#05090e;
+    border:1px solid #294258;
+    border-radius:14px;
+    overflow:hidden;
+}
+
+.title{
+    padding:11px;
+    background:#101d2a;
+    color:#00d9ff;
+    font-weight:bold;
+}
+
+.console{
+    height:230px;
+    overflow:auto;
+    padding:13px;
+    font-family:monospace;
+    font-size:13px;
+    line-height:1.6;
+}
+
+.info{color:#73d9ff}
+.success{color:#70ff9a}
+.error{color:#ff7373}
+.warning{color:#ffd166}
+
+.records{
+    margin-top:15px;
+}
+
+.card{
+    background:#101923;
+    border:1px solid #294258;
+    padding:15px;
+    border-radius:13px;
+    margin-bottom:12px;
+}
+
+.card pre{
+    white-space:pre-wrap;
+    word-break:break-word;
+    color:#baffca;
+    font-size:13px;
+}
+
+.card button{
+    margin-top:10px;
+    background:#8d2727;
+}
+
+.modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:#000b;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.modalBox{
+    width:100%;
+    max-width:420px;
+    background:#111c28;
+    padding:25px;
+    border-radius:18px;
+    box-shadow:0 20px 60px #000;
+}
+
+.modalBox h2{
+    margin-top:0;
+    text-align:center;
+}
+
+.close{
+    background:#333f4d;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>🚘 Vehicle Lookup</h1>
+
+<div class="subtitle">
+Live API • Automatic Data Storage
+</div>
+
+<input
+    id="vehicleNumber"
+    placeholder="Enter vehicle number e.g. AP01AB1234"
+    autocomplete="off"
+>
+
+<button onclick="lookupVehicle()">
+🔍 SEARCH VEHICLE
+</button>
+
+<button class="dataBtn" onclick="openData()">
+🔐 DATA
+</button>
+
+<div class="status" id="status">
+Ready
+</div>
+
+<div class="panel">
+
+<div class="title">
+🖥️ LIVE CONSOLE
+</div>
+
+<div class="console" id="console"></div>
+
+</div>
+
+</div>
+
+
+<!-- PASSWORD MODAL -->
+
+<div class="modal" id="passwordModal">
+
+<div class="modalBox">
+
+<h2>🔐 Data Password</h2>
+
+<p style="text-align:center;color:#aebdcc">
+Enter password to access saved data
+</p>
+
+<input
+    type="password"
+    id="dataPassword"
+    placeholder="Password"
+>
+
+<button onclick="checkPassword()">
+🔓 UNLOCK DATA
+</button>
+
+<button class="close" onclick="closeModal()">
+CANCEL
+</button>
+
+</div>
+
+</div>
+
+
+<!-- DATA MODAL -->
+
+<div class="modal" id="dataModal">
+
+<div class="modalBox">
+
+<h2>💾 Saved Vehicle Data</h2>
+
+<div id="records" class="records"></div>
+
+<button class="danger" onclick="deleteAllData()">
+🗑️ DELETE ALL DATA
+</button>
+
+<button class="close" onclick="closeData()">
+CLOSE
+</button>
+
+</div>
+
+</div>
+
+
+<script>
+
+/*
+=====================================================
+API CONFIGURATION
+=====================================================
+
+Replace this with YOUR authorized API.
+
+Example:
+
+https://example.com/api/vehicle
+
+=====================================================
+*/
+
+const API_URL =
+"https://apihub-livid.vercel.app/api/vehicle?key=naxupdate_49447fc17415907058&veh=UP16FB2070";
+
+
+/*
+=====================================================
+API PARAMETER
+
+Change "number" if your API expects:
+
+vehicle_number
+registration_number
+reg_no
+etc.
+=====================================================
+*/
+
+const PARAMETER = "number";
+
+
+/*
+=====================================================
+DATA PASSWORD
+
+CHANGE THIS PASSWORD.
+
+Example:
+"987654"
+
+IMPORTANT:
+A password stored in frontend JavaScript
+is NOT strong server-side security.
+=====================================================
+*/
+
+const DATA_PASSWORD = "944586";
+
+
+const consoleBox =
+document.getElementById("console");
+
+const statusBox =
+document.getElementById("status");
+
+
+/* ===============================
+   CONSOLE
+================================ */
+
+function log(message,type="info"){
+
+    const time =
+    new Date().toLocaleTimeString();
+
+    const div =
+    document.createElement("div");
+
+    div.className = type;
+
+    div.textContent =
+    "[" + time + "] " + message;
+
+    consoleBox.appendChild(div);
+
+    consoleBox.scrollTop =
+    consoleBox.scrollHeight;
+}
+
+
+/* ===============================
+   STORAGE
+================================ */
+
+function getSavedData(){
+
+    try{
+
+        return JSON.parse(
+            localStorage.getItem(
+                "vehicleSavedData"
+            )
+        ) || [];
+
+    }catch{
+
+        return [];
+
+    }
+}
+
+
+function saveVehicleData(vehicle,data){
+
+    const records =
+    getSavedData();
+
+
+    const record = {
+
+        id:
+        Date.now(),
+
+        vehicleNumber:
+        vehicle,
+
+        searchedAt:
+        new Date().toLocaleString(),
+
+        response:
+        data
+
+    };
+
+
+    records.unshift(record);
+
+
+    localStorage.setItem(
+        "vehicleSavedData",
+        JSON.stringify(records)
+    );
+
+
+    log(
+        "💾 Vehicle data automatically saved",
+        "success"
+    );
+}
+
+
+/* ===============================
+   VEHICLE SEARCH
+================================ */
+
+async function lookupVehicle(){
+
+    const vehicle =
+    document
+    .getElementById("vehicleNumber")
+    .value
+    .trim()
+    .toUpperCase();
+
+
+    if(!vehicle){
+
+        statusBox.textContent =
+        "❌ Enter vehicle number";
+
+        log(
+            "Vehicle number is empty",
+            "error"
+        );
+
+        return;
+    }
+
+
+    log(
+        "--------------------------------",
+        "info"
+    );
+
+    log(
+        "SEARCH: " + vehicle,
+        "info"
+    );
+
+
+    try{
+
+        const url =
+        new URL(API_URL);
+
+
+        url.searchParams.set(
+            PARAMETER,
+            vehicle
+        );
+
+
+        log(
+            "GET " + url.toString(),
+            "info"
+        );
+
+
+        statusBox.textContent =
+        "⏳ Searching...";
+
+
+        const start =
+        performance.now();
+
+
+        const response =
+        await fetch(
+            url.toString(),
+            {
+                method:"GET",
+
+                headers:{
+                    "Accept":
+                    "application/json"
+                }
+            }
+        );
+
+
+        const elapsed =
+        Math.round(
+            performance.now()-start
+        );
+
+
+        log(
+            "HTTP " +
+            response.status +
+            " (" +
+            elapsed +
+            " ms)",
+            response.ok
+            ?"success"
+            :"error"
+        );
+
+
+        const raw =
+        await response.text();
+
+
+        if(!response.ok){
+
+            log(
+                "API ERROR: " +
+                raw,
+                "error"
+            );
+
+            statusBox.textContent =
+            "❌ API request failed";
+
+            return;
+        }
+
+
+        let data;
+
+
+        try{
+
+            data =
+            JSON.parse(raw);
+
+        }catch{
+
+            data = {
+                response:raw
+            };
+
+        }
+
+
+        /*
+        SAVE AUTOMATICALLY
+        */
+
+        saveVehicleData(
+            vehicle,
+            data
+        );
+
+
+        log(
+            "✅ JSON received",
+            "success"
+        );
+
+
+        log(
+            "💾 Automatically stored",
+            "success"
+        );
+
+
+        statusBox.textContent =
+        "✅ Search successful & saved";
+
+
+    }catch(error){
+
+        statusBox.textContent =
+        "❌ Request failed";
+
+
+        log(
+            "ERROR: " +
+            error.message,
+            "error"
+        );
+
+    }
+}
+
+
+/* ===============================
+   PASSWORD
+================================ */
+
+function openData(){
+
+    document
+    .getElementById("passwordModal")
+    .style.display = "flex";
+
+    document
+    .getElementById("dataPassword")
+    .value = "";
+
+}
+
+
+function closeModal(){
+
+    document
+    .getElementById("passwordModal")
+    .style.display = "none";
+
+}
+
+
+function checkPassword(){
+
+    const password = 
+    document
+    .getElementById("dataPassword")
+    .value;
+
+
+    if(password === DATA_PASSWORD){
+
+        closeModal();
+
+        showData();
+
+        document
+        .getElementById("dataModal")
+        .style.display = "flex";
+
+    }else{
+
+        alert(
+            "❌ Incorrect password"
+        );
+
+    }
+}
+
+
+/* ===============================
+   DISPLAY SAVED DATA
+================================ */
+
+function showData(){
+
+    const records =
+    getSavedData();
+
+
+    const box =
+    document.getElementById(
+        "records"
+    );
+
+
+    if(records.length === 0){
+
+        box.innerHTML =
+        "<p style='text-align:center;color:#aaa'>" +
+        "No saved vehicle data." +
+        "</p>";
+
+        return;
+    }
+
+
+    box.innerHTML = "";
+
+
+    records.forEach(record => {
+
+        const card =
+        document.createElement("div");
+
+        card.className =
+        "card";
+
+
+        const title =
+        document.createElement("div");
+
+        title.innerHTML =
+        "<b>🚘 " +
+        escapeHTML(
+            record.vehicleNumber
+        ) +
+        "</b><br>" +
+
+        "<small>" +
+        escapeHTML(
+            record.searchedAt
+        ) +
+        "</small>";
+
+
+        const pre =
+        document.createElement("pre");
+
+        pre.textContent =
+        JSON.stringify(
+            record.response,
+            null,
+            2
+        );
+
+
+        const del =
+        document.createElement("button");
+
+        del.textContent =
+        "🗑️ Delete";
+
+        del.onclick =
+        function(){
+
+            deleteRecord(
+                record.id
+            );
+
+        };
+
+
+        card.appendChild(title);
+
+        card.appendChild(pre);
+
+        card.appendChild(del);
+
+        box.appendChild(card);
+
+    });
+
+}
+
+
+/* ===============================
+   DELETE ONE
+================================ */
+
+function deleteRecord(id){
+
+    const records =
+    getSavedData()
+    .filter(
+        item => item.id !== id
+    );
+
+
+    localStorage.setItem(
+        "vehicleSavedData",
+        JSON.stringify(records)
+    );
+
+
+    showData();
+
+}
+
+
+/* ===============================
+   DELETE ALL
+================================ */
+
+function deleteAllData(){
+
+    if(
+        !confirm(
+            "Delete ALL saved vehicle data?"
+        )
+    ){
+
+        return;
+
+    }
+
+
+    localStorage.removeItem(
+        "vehicleSavedData"
+    );
+
+
+    showData();
+
+
+    log(
+        "🗑️ All saved data deleted",
+        "warning"
+    );
+
+}
+
+
+/* ===============================
+   CLOSE DATA
+================================ */
+
+function closeData(){
+
+    document
+    .getElementById("dataModal")
+    .style.display = "none";
+
+}
+
+
+/* ===============================
+   HTML ESCAPE
+================================ */
+
+function escapeHTML(value){
+
+    return String(value)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;")
+    .replace(/'/g,"&#039;");
+
+}
+
+
+/* ===============================
+   ENTER KEY
+================================ */
+
+document
+.getElementById("vehicleNumber")
+.addEventListener(
+    "keydown",
+    function(e){
+
+        if(e.key === "Enter"){
+            lookupVehicle();
+        }
+
+    }
+);
+
+
+/* ===============================
+   STARTUP
+================================ */
+
+log(
+    "Vehicle Lookup initialized",
+    "success"
+);
+
+log(
+    "Automatic local data storage: ON",
+    "info"
+);
+
+</script>
+
+</body>
+</html>
